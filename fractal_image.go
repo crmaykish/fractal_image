@@ -9,12 +9,15 @@ import (
 	"github.com/fogleman/gg"
 )
 
-const imageWidth = 1920 * 2
-const imageHeight = 1080 * 2
-const center = complex(-3.14159/2-0.0045, -0.006)
-const zoomFactor = 8000.0
-const iterations = 70000
-const filename = "assets/fractal.png"
+const imageWidth = 1920 * 4
+const imageHeight = 1080 * 4
+const center = complex(0.35635671040000017, -0.645683968)
+const zoomFactor = 195312.5
+const iterations = 20000
+const filename = "fractal.png"
+
+var lightColor = uint32(0xFFA0DE)
+var darkColor = uint32(0x000A29)
 
 func main() {
 	genStartTime := time.Now()
@@ -42,17 +45,19 @@ func main() {
 func renderImage(buffer [][]uint32, filename string, m *fractal_core.Mandelbrot) {
 	dc := gg.NewContext(imageWidth, imageHeight)
 
-	var histTotal uint32
-	for i := 0; i < fractal_core.GetMaxIterations(m); i++ {
-		histTotal += fractal_core.GetHistogram(m)[i]
-	}
-
 	// Save the buffer to an image
 	for x := 0; x < imageWidth; x++ {
 		for y := 0; y < imageHeight; y++ {
-			cellVal := buffer[x][y]
+			var val = fractal_core.GetBuffer(m)[x][y]
+			var hue = fractal_core.GetHue(m)[x][y]
 
-			dc.SetRGB255(getColor(cellVal))
+			dc.SetRGB255(0, 0, 0)
+
+			if val < uint32(iterations) {
+				var r, g, b = fractal_core.InterpColors(darkColor, lightColor, hue)
+				dc.SetRGB255(int(r), int(g), int(b))
+			}
+
 			dc.SetPixel(x, y)
 		}
 	}
@@ -60,16 +65,12 @@ func renderImage(buffer [][]uint32, filename string, m *fractal_core.Mandelbrot)
 	dc.SavePNG(filename)
 }
 
-// NOTE: I remember what the histogram was for now...
-// If you scale everything directly off the iterations, it will be super dark when the
-// iterations are too high for the zoom, and crazy when they're too low
 func getColor(v uint32) (int, int, int) {
 	var color uint32
 
 	if v >= iterations {
 		color = 0x000000
 	} else {
-		// this sucks
 		color = uint32(fractal_core.MapIntToFloat(int(v), 1, iterations-1, 0.0, math.Pow(2, 16)))
 	}
 
